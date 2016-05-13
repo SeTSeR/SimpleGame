@@ -4,7 +4,7 @@ import Control.Monad.Trans
 
 import Data.Array
 import Data.IORef
-import Data.Text hiding (length, maximum)
+import Data.Text hiding (length, maximum, count)
 
 
 import Graphics.UI.Gtk hiding (rectangle)
@@ -38,12 +38,28 @@ toggleKeyEvent area state = tryEvent $ do
     keyName <- unpack <$> eventKeyName
     case keyName of
         "Up" -> liftIO $ writeIORef state (vx, vy + 1, x, y)
-{-      "Down" -> return ()
-        "Left" -> return ()
-        "Right" -> return ()-}
+        "Down" -> liftIO $ writeIORef state (vx, vy - 1, x, y)
+        "Left" -> liftIO $ writeIORef state (vx - 1, vy, x, y)
+        "Right" -> liftIO $ writeIORef state (vx + 1, vy, x, y)
         otherwise -> liftIO $ putStrLn keyName
     liftIO $ runGame state area >>= putStrLn
-    liftIO $ drawWindowInvalidateRect window (Rectangle 0 0 w h) True
+
+modifyxy :: IORef GameState -> GameState -> DrawingArea -> IO ()
+modifyxy state (_, _, newx, newy) area = do
+    window <- widgetGetDrawWindow area
+    size <- widgetGetSize area
+    (vx, vy, x, y) <- readIORef state
+    let dx w = w/(fromIntegral 100)
+        dy h = (fromIntegral h)/(fromIntegral 100)
+        draw window (w, h) currx curry x y | (currx + (dx w) >= x) || (curry + (dy h) >= y) = do
+            writeIORef state (vx, vy, x, y)
+            drawWindowInvalidateRect window (Rectangle 0 0 w h) True
+                                           | otherwise = do
+            writeIORef state (vx, vy, (currx + (dx w)), (curry + (dy h)))
+            drawWindowInvalidateRect window (Rectangle 0 0 w h) True
+            draw window size (currx + (dx w)) (curry + (dy h)) x y
+    draw window size x y newx newy
+
 
 runGame :: IORef GameState -> DrawingArea -> IO String
 runGame state area = do
@@ -53,14 +69,12 @@ runGame state area = do
     putStrLn "RunGame:"
     putStrLn $ show (vx, vy, x, y)
     if (x + vx < length gameMap) && (y + vy >= gameMap!(x + vx))
-        then do
+    then do
         writeIORef state $ getNextState (vx, vy, x, y)
+        drawWindowInvalidateRect window (Rectangle 0 0 w h) True
         answer <- runGame state area
-        drawWindowInvalidateRect window (Rectangle 0 0 w h) True
         return (show (x, y) ++ "\n" ++ answer)
-    else do
-        drawWindowInvalidateRect window (Rectangle 0 0 w h) True
-        return (show (x, y))
+    else return (show (x, y))
 
 drawMap :: Int -> Int -> Array Int Int -> IORef GameState -> Render ()
 drawMap w h gMap state = do
@@ -72,7 +86,7 @@ drawMap w h gMap state = do
         r' = w''/2
         height x = (fromIntegral x)*h'/m'*0.8
         drawRects arr m | m < length gMap = do
-            setSourceRGB 0 1 0
+            setSourceRGB 1 1 0.5
             rectangle ((fromIntegral m)*w'') (h' - (height (arr!m))) w'' (height (arr!m))
             fill
             drawRects arr (m + 1)
@@ -82,7 +96,7 @@ drawMap w h gMap state = do
     fill
     drawRects gMap 0
     (_, _, x, y) <- liftIO $ readIORef state
-    setSourceRGB 0 0 1
+    setSourceRGB 1 0 0
     arc ((fromIntegral x)*w'' + r') (h' - (height y) - r') r' 0 6.28
     fill
 
