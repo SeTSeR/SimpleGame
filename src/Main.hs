@@ -1,123 +1,61 @@
 module Main where
 
-import Control.Monad.Trans
+import Graphics.Gloss.Interface.Pure.Game
 
-import Data.Array
-import Data.IORef
-import Data.Text hiding (length, maximum, count)
+import System.Random
 
+type Level = [Int]
 
-import Graphics.UI.Gtk hiding (rectangle)
-import Graphics.Rendering.Cairo
+data GameState = GS
+    { level :: [Int]
+    , x :: Int
+    , y :: Int
+    , vx :: Int
+    , vy :: Int
+    }
 
-type GameState = (Int, Int, Int, Int)
-
-gameList :: [Int]
-gameList = [23, 24, 24, 23, 22, 23, 24, 23, 23, 23, 23, 24, 25, 25, 25, 24, 24, 24, 25, 24, 25, 25, 25, 25, 26, 25, 25, 24, 23, 24, 24, 24, 25, 26, 27, 27, 27, 27, 28, 28, 27, 27, 26, 25, 24, 25, 25, 24, 23, 23, 23, 22, 21, 20, 19, 18, 18, 19, 20, 19, 19, 20, 21, 22, 23, 22, 21, 20, 20, 20, 19, 20, 20, 20, 21, 20, 19, 20, 21, 21, 22, 22, 22, 22, 21, 22, 22, 21, 20, 20, 19, 20, 19, 19, 19, 18, 19, 20, 21, 22]
-
-gameMap :: Array Int Int
-gameMap = listArray (0, 99) gameList
-
-gameMax :: Int
-gameMax = maximum gameList
-
-initState :: GameState
-initState = (1, 0, 0, gameMap!0)
-
-getNextState :: GameState -> GameState
-getNextState (vx, vy, x, y) | y + vy >= gameMap!(x + vx) = (vx, vy - 1, x + vx, y + vy)
-                            | otherwise = (vx, 0, x, y)
-
-toggleKeyEvent :: DrawingArea -> IORef GameState -> EventM EKey Bool
-toggleKeyEvent area state = tryEvent $ do
-    window <- liftIO $ widgetGetDrawWindow area
-    (w, h) <- liftIO $ widgetGetSize area
-    (vx, vy, x, y) <- liftIO $ readIORef state
-    liftIO $ putStrLn "ToggleKeyEvent:"
-    liftIO $ putStrLn $ show (vx, vy, x, y)
-    keyName <- unpack <$> eventKeyName
-    case keyName of
-        "Up" -> liftIO $ writeIORef state (vx, vy + 1, x, y)
-        "Down" -> liftIO $ writeIORef state (vx, vy - 1, x, y)
-        "Left" -> liftIO $ writeIORef state (vx - 1, vy, x, y)
-        "Right" -> liftIO $ writeIORef state (vx + 1, vy, x, y)
-        otherwise -> liftIO $ putStrLn keyName
-    liftIO $ runGame state area >>= putStrLn
-
-modifyxy :: IORef GameState -> GameState -> DrawingArea -> IO ()
-modifyxy state (_, _, newx, newy) area = do
-    window <- widgetGetDrawWindow area
-    size <- widgetGetSize area
-    (vx, vy, x, y) <- readIORef state
-    let dx w = w/(fromIntegral 100)
-        dy h = (fromIntegral h)/(fromIntegral 100)
-        draw window (w, h) currx curry x y | (currx + (dx w) >= x) || (curry + (dy h) >= y) = do
-            writeIORef state (vx, vy, x, y)
-            drawWindowInvalidateRect window (Rectangle 0 0 w h) True
-                                           | otherwise = do
-            writeIORef state (vx, vy, (currx + (dx w)), (curry + (dy h)))
-            drawWindowInvalidateRect window (Rectangle 0 0 w h) True
-            draw window size (currx + (dx w)) (curry + (dy h)) x y
-    draw window size x y newx newy
-
-
-runGame :: IORef GameState -> DrawingArea -> IO String
-runGame state area = do
-    window <- widgetGetDrawWindow area
-    (w, h) <- widgetGetSize area
-    (vx, vy, x, y) <- readIORef state
-    putStrLn "RunGame:"
-    putStrLn $ show (vx, vy, x, y)
-    if (x + vx < length gameMap) && (y + vy >= gameMap!(x + vx))
-    then do
-        writeIORef state $ getNextState (vx, vy, x, y)
-        drawWindowInvalidateRect window (Rectangle 0 0 w h) True
-        answer <- runGame state area
-        return (show (x, y) ++ "\n" ++ answer)
-    else return (show (x, y))
-
-drawMap :: Int -> Int -> Array Int Int -> IORef GameState -> Render ()
-drawMap w h gMap state = do
-    let n' = (fromIntegral . length) gMap
-        w' = fromIntegral w
-        w'' = w'/n'
-        h' = fromIntegral h
-        m' = fromIntegral gameMax
-        r' = w''/2
-        height x = (fromIntegral x)*h'/m'*0.8
-        drawRects arr m | m < length gMap = do
-            setSourceRGB 1 1 0.5
-            rectangle ((fromIntegral m)*w'') (h' - (height (arr!m))) w'' (height (arr!m))
-            fill
-            drawRects arr (m + 1)
-                        | otherwise        = return ()
-    setSourceRGB 1 1 1
-    rectangle 0 0 w' h'
-    fill
-    drawRects gMap 0
-    (_, _, x, y) <- liftIO $ readIORef state
-    setSourceRGB 1 0 0
-    arc ((fromIntegral x)*w'' + r') (h' - (height y) - r') r' 0 6.28
-    fill
-
-render :: IORef GameState -> DrawingArea -> IO Bool
-render state area = do
-    win <- widgetGetDrawWindow area
-    (w, h) <- widgetGetSize area
-    renderWithDrawable win $ drawMap w h gameMap state
-    return True
+levelSize :: (Int, Int)
+levelSize@(levelWidth, levelHeight) = (100, 100)
 
 main :: IO ()
 main = do
-    initGUI
-    window <- windowNew
-    state <- newIORef initState
-    area <- drawingAreaNew
-    onExpose area $ const $ render state area
-    set window [containerChild := area]
-    window `on` keyReleaseEvent $ toggleKeyEvent area state
-    window `on` destroyEvent $ liftIO mainQuit >> return False
-    widgetShowAll window
-    log <- runGame state area
-    putStrLn log
-    mainGUI
+    gen <- getStdGen
+    startGame gen
+
+createLevel :: RandomGen g => Int -> g -> Level
+createLevel length gen = unfoldList (head $ take 1 $ randomRs (0, 100) gen) (take length $ randomRs (-2, 2) gen)
+  where
+    unfoldList :: Int -> [Int] -> [Int]
+    unfoldList value [] = [value]
+    unfoldList value (x:xs) = [value + x] ++ (unfoldList (value + x) xs)
+
+startGame :: StdGen -> IO ()
+startGame gen = play (InWindow "Another game" windowSize (240, 160)) (greyN 0.25) 30 (initState gen) renderer handler updater 
+
+windowSize :: (Int, Int)
+windowSize = both (* (round cellSize)) levelSize
+
+cellSize :: Float 
+cellSize = 15
+
+both :: (a -> b) -> (a, a) -> (b, b)
+both f (a, b) = (f a, f b)
+
+initState :: StdGen -> GameState
+initState gen = GS level 0 (1 + (head level)) 4 0
+  where
+    level = createLevel levelWidth gen
+
+handler :: Event -> world -> world
+handler _ id = id
+
+updater :: Float -> world -> world
+updater _ id = id
+
+renderer :: world -> Picture
+renderer _ = pictures [ uncurry translate (cellToScreen (x, y))
+                      $ color white $ rectangleWire cellSize cellSize
+                      | x <- [0..levelWidth - 1], y <- [0..levelHeight - 1]]
+
+cellToScreen :: (Int, Int) -> (Float, Float)
+cellToScreen = both ((* cellSize) . fromIntegral)
