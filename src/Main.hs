@@ -71,27 +71,18 @@ updater _ gs@GS
   } | x >= levelWidth = gs
     | (x + vx + 1) >= levelWidth = if (y + vy) >= level!levelWidth
                                    then gs
-                                     { level = level
-                                     , x = levelWidth
+                                     { x = levelWidth
                                      , y = y + vy
-                                     , vx = vx
                                      , vy = vy - 1
                                      }
                                    else
                                      if (y + vy) >= level!(x + 1)
                                      then gs
-                                       { level = level
-                                       , x = x
-                                       , y = y + vy
-                                       , vx = vx
+                                       { y = y + vy
                                        , vy = vy - 1
                                        }
                                      else gs
-                                       { level = level
-                                       , x = x
-                                       , y = y
-                                       , vx = vx
-                                       , vy = 0
+                                       { vy = 0
                                        }
 
 updater _ gs@GS
@@ -102,27 +93,18 @@ updater _ gs@GS
   , vy = vy
   } = if (y + vy) >= level!(x + vx + 1)
       then gs
-        { level = level
-        , x = x + vx
+        { x = x + vx
         , y = y + vy
-        , vx = vx
         , vy = vy - 1
         }
       else
         if (y + vy) >= level!(x + 1)
         then gs
-          { level = level
-          , x = x
-          , y = y + vy
-          , vx = vx 
+          { y = y + vy
           , vy = vy - 1
           }
         else gs
-          { level = level
-          , x = x
-          , y = y
-          , vx = vx
-          , vy = 0
+          { vy = 0 
           }
 
 --renderer :: world -> Picture
@@ -157,38 +139,19 @@ cellToScreen = both ((* cellSize) . fromIntegral)
 
 --handler :: Event -> world -> world
 handler event gs@GS
-  { level = level
-  , x = x
-  , y = y
-  , vx = vx
+  { vx = vx 
   , vy = vy
   } = case event of
     EventKey (SpecialKey KeyUp) Down _ _ -> gs
-      { level = level
-      , x = x
-      , y = y
-      , vx = vx
-      , vy = vy + 2
+      { vy = vy + 2 
       }
     EventKey (SpecialKey KeyRight) Down _ _ -> gs
-      { level = level
-      , x = x
-      , y = y
-      , vx = vx + 2
-      , vy = vy
+      { vx = vx + 2 
       }
     EventKey (SpecialKey KeyDown) Down _ _ -> gs
-      { level = level
-      , x = x
-      , y = y
-      , vx = vx
-      , vy = vy - 2
+      { vy = vy - 2
       }
     EventKey (SpecialKey KeyLeft) Down _ _ -> gs
-      { level = level
-      , x = x
-      , y = y
-      , vx = vx - 2
-      , vy = vy
+      { vx = vx - 2
       }
     otherwise -> gs
