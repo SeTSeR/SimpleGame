@@ -37,9 +37,6 @@ createLevel length gen = listArray (1, length) $ construct 1 length gen 0
                                                     else
                                                      construct x length nextGen last
 
---createLevel :: RandomGen g => Int -> g -> Level
---createLevel length gen = listArray (1, length) $ replicate length 25 
-
 startGame :: StdGen -> IO ()
 startGame gen = play (InWindow "Another game" windowSize (0, 0)) (greyN 0.25) fps (initState gen) renderer handler updater 
 
@@ -140,13 +137,13 @@ renderer gs@GS
          then 
            applyViewPortToPicture viewPort $ 
            pictures ([ translate (width/2) (height/2) $ color white $ rectangleSolid width height ] ++
-                     [ translate (currx (h - 1)) (curry h) $ color green $ rectangleSolid cellSize (currheight h) | h <- [1..levelWidth]] ++
-                     [ translate (currx x) (curry' y) $ color blue $ circleSolid (cellSize/2)])
+                     [ translate (currx (h - 1)) (curry h) $ color yellow $ rectangleSolid cellSize (currheight h) | h <- [1..levelWidth]] ++
+                     [ translate (currx x) (curry' y) $ color red $ circleSolid (cellSize/2)])
          else
            applyViewPortToPicture viewPort $ 
            pictures ([ translate (width/2) (height/2) $ color white $ rectangleSolid width height ] ++
-                     [ translate (currx (h - 1)) (curry h) $ color green $ rectangleSolid cellSize (currheight h) | h <- [1..levelWidth]] ++
-                     [ translate (currx x) (curry' y) $ color blue $ circleSolid (cellSize/2)] ++
+                     [ translate (currx (h - 1)) (curry h) $ color yellow $ rectangleSolid cellSize (currheight h) | h <- [1..levelWidth]] ++
+                     [ translate (currx x) (curry' y) $ color red $ circleSolid (cellSize/2)] ++
                      [ translate (width/2) (height/2) $ color black $ text "Victory!" ])
 
 viewPort :: ViewPort
