@@ -68,7 +68,25 @@ updater _ gs@GS
   , y = y
   , vx = vx
   , vy = vy
-  } | x >= levelWidth = gs
+  } | x < 1 = gs
+      { x = 1
+      }
+    | (x + vx + 1) < 1 = if (y + vy) >= level!1
+                         then gs
+                           { x = 1
+                           , y = y + vy
+                           , vy = vy - 1
+                           }
+                         else
+                           if (y + vy) >= level!(x + 1)
+                           then gs
+                             { y = y + vy
+                             , vy = vy - 1
+                             }
+                           else gs
+                             { vy = 0
+                             }
+    | x >= levelWidth = gs
     | (x + vx + 1) >= levelWidth = if (y + vy) >= level!levelWidth
                                    then gs
                                      { x = levelWidth
